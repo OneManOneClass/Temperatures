@@ -63,7 +63,7 @@ void setup() {
 		Serial.print(F("My IP address: "));
 		Serial.println(Ethernet.localIP());
 	} else {
-		Serial.print(F("  DHCP assigned IP "));
+		Serial.print(F(" DHCP assigned IP "));
 		Serial.println(Ethernet.localIP());
 	}
 	dht.begin();
