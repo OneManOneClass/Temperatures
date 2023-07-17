@@ -155,7 +155,7 @@ void getLocation(struct clientData *data) {
 			}
 		}
 
-		sendToDb(temp_value, data);
+//		sendToDb(temp_value, data);
 	}
 	disconnect();
 }
