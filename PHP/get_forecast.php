@@ -3,7 +3,7 @@ include 'secrets.php';
 
 // URL for the API request
 $url = "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$openweathermapAPIKey&units=metric";
-echo "$url \n";
+// echo "$url \n";
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
@@ -12,9 +12,9 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
 $response = curl_exec($ch);
 
-echo "<br>";
-echo $url;
-echo "<br>";
+// echo "<br>";
+// echo $url;
+// echo "<br>";
 
 
 if (curl_errno($ch)) {
