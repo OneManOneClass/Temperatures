@@ -8,6 +8,7 @@
 #define DHTPIN 7
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
+float temp_value;
 //------------------------------------------------------------
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
@@ -18,11 +19,14 @@ EthernetClient client;
 
 int HTTP_PORT = 80;
 String HTTP_METHOD = "GET";
+char ip_server[] = "ip-api.com";
 const char time_server[] = "worldtimeapi.org";
 
 String PATH_NAME = "/insert_temp.php";
 String tempValueQueryString = "?temp_value=";
 String tempDateQueryString = "&temp_date=";
+String tempLatQueryString = "&lat=";
+String tempLonQueryString = "&lon=";
 
 const unsigned long HTTP_TIMEOUT = 10000;  // max response time from server
 const size_t MAX_CONTENT_SIZE = 500;      // max size of the HTTP response
@@ -32,9 +36,9 @@ const unsigned long postingInterval = 10 * 1000;
 
 struct clientData {
 	String datetime;
+	float lat;
+	float lon;
 };
-
-DynamicJsonDocument json(MAX_CONTENT_SIZE);
 
 float init_num = 1;
 
@@ -71,27 +75,41 @@ void setup() {
 }
 
 void loop() {
-
-	getTime(); // @suppress("Invalid arguments")
-	float temp_value = dht.readTemperature();
-	Serial.print(F("We have read this temperature: "));
-	Serial.println(temp_value);
-	sendToDb(temp_value, json["datetime"].as<String>());
-
-	wait(); // @suppress("Invalid arguments")
+	clientData data;
+	temp_value = dht.readTemperature();
+	getTime(&data);
+	getLocation(&data);
+	sendToDb(temp_value, &data);
+	wait();
 }
-void sendToDb(float temp_value, String datetime) {
-	Serial.println(F("Attempting to send to DB"));
+void sendToDb(float temp_value, struct clientData *data) {
+	Serial.println(F("Attempting to send to DB:"));
+	//DEBUG
+	Serial.println("From sendToDb: ");
+	Serial.println(temp_value);
+	Serial.println(data->datetime);
+	Serial.println(data->lat);
+	Serial.println(data->lon);
+	//
 	if (client.connect(ip, HTTP_PORT)) {
 		// if connected:
 		Serial.println(F("Connected to server"));
 		// make a HTTP request:
 		// Send HTTP request
-		String encodedTempDate = urlEncode(datetime);
+		String encodedTempDate = urlEncode(data->datetime);
+		//DEBUG
+		Serial.println("Query to DB:");
+		Serial.println(
+				HTTP_METHOD + " " + PATH_NAME + tempValueQueryString
+						+ String(temp_value) + "&temp_date=" + encodedTempDate
+						+ tempLatQueryString + data->lat + tempLonQueryString
+						+ data->lon + " HTTP/1.1");
+		//
 		client.println(
 				HTTP_METHOD + " " + PATH_NAME + tempValueQueryString
 						+ String(temp_value) + "&temp_date=" + encodedTempDate
-						+ " HTTP/1.1");
+						+ tempLatQueryString + data->lat + tempLonQueryString
+						+ data->lon + " HTTP/1.1");
 		client.println(F("Host: arduino-ethernet"));
 
 		client.println(F("Connection: close"));
@@ -114,19 +132,32 @@ void sendToDb(float temp_value, String datetime) {
 		Serial.println(F("connection failed"));
 	}
 }
-void getTime() {
-	Serial.println(F("Attempting to get TIME"));
+void getTime(struct clientData *data) {
 	if (client.connect(time_server, 80)) {
 		Serial.println(F("We have connected to Time Server"));
 		if (sendRequestTime(time_server) && skipResponseHeaders()) {  //
 			Serial.println(F("We got something"));
-			clientData data;
-			if (readResponseContentTime(&data)) { // @suppress("Invalid arguments")
-				printClientData(&data);
+			if (readResponseContentTime(data)) {
+				Serial.println("We've read time");
 			}
 		}
 		disconnect();
 	}
+}
+
+void getLocation(struct clientData *data) {
+	if (client.connect(ip_server, 80)) {
+		Serial.println(F("We have connected"));
+		if (sendRequestLocation(ip_server) && skipResponseHeaders()) { //
+			Serial.println("We got something");
+			if (readResponseContentLocation(data)) {
+//				printClientData(&data);
+			}
+		}
+
+		sendToDb(temp_value, data);
+	}
+	disconnect();
 }
 
 bool sendRequestTime(const char *host) {
@@ -138,6 +169,18 @@ bool sendRequestTime(const char *host) {
 	client.println(host);
 	client.println("Connection: close");
 	client.println();
+	delay(200);
+	return true;
+}
+
+bool sendRequestLocation(const char *host) {
+	client.println("GET /json HTTP/1.1");
+	client.print("Host: ");
+	client.println(host);
+	client.println("User-Agent: arduino-ethernet");
+	client.println("Connection: close");
+	client.println();
+	delay(200);
 	return true;
 }
 
@@ -150,24 +193,57 @@ bool skipResponseHeaders() {
 	if (!ok) {
 		Serial.println("No response or invalid response!");
 	}
+//	else {
+//		Serial.println("Response received from server:");
+//		// Print the response content to see what the server sent (optional)
+//		while (client.available()) {
+//			Serial.write(client.read());
+//		}
 	return ok;
 }
 
 bool readResponseContentTime(struct clientData *data) {
-	DeserializationError error = deserializeJson(json, client);
+	DynamicJsonDocument jsonTime(MAX_CONTENT_SIZE);
+	DeserializationError error = deserializeJson(jsonTime, client);
 	if (error) {
 		Serial.print("deserializeJson() failed: ");
 		Serial.println(error.c_str());
 		client.stop();
 		return false;
 	}
-	data->datetime = json["datetime"].as<String>();
+	data->datetime = jsonTime["datetime"].as<String>();
+	//DEBUG
+//	Serial.println("readResponseContentTime()");
+//	Serial.println(data->datetime);
+	//
 	return true;
 }
 
-void printClientData(const struct clientData *data) {
-	Serial.print("Time = ");
+bool readResponseContentLocation(struct clientData *data) {
+	DynamicJsonDocument jsonLocation(MAX_CONTENT_SIZE);
+	DeserializationError error = deserializeJson(jsonLocation, client);
+
+	if (error) {
+		Serial.print("deserializeJson() failed: ");
+		Serial.println(error.c_str());
+		client.stop();
+		return false;
+	}
+
+	// Parse the JSON and extract the data
+	data->lat = jsonLocation["lat"].as<float>();
+	data->lon = jsonLocation["lon"].as<float>();
+
+	return true;
+}
+void printClientData(const float temp_value, struct clientData *data) {
+	//DEBUG
+	Serial.println("From printClientData: ");
+	//
+	Serial.println(temp_value);
 	Serial.println(data->datetime);
+	Serial.println(data->lat);
+	Serial.println(data->lon);
 }
 
 void disconnect() {
@@ -176,8 +252,8 @@ void disconnect() {
 }
 
 void wait() {
-	Serial.println("Wait 30 seconds");
-	delay(50000);
+	Serial.println("Wait 2min");
+	delay(120000);
 }
 
 String urlEncode(const String &str) {
@@ -196,6 +272,5 @@ String urlEncode(const String &str) {
 			encodedString += code;
 		}
 	}
-
 	return encodedString;
 }

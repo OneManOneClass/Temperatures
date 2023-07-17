@@ -14,6 +14,8 @@ class Arduino(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     temp_value = Column(Float)
     temp_date = Column(DateTime, default=datetime.utcnow)
+    latitude = Column(Float)
+    longitude = Column(Float)
 
     forecast = relationship("Forecast", uselist=False, backref="arduino")
 

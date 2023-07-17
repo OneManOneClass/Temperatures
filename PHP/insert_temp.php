@@ -1,38 +1,52 @@
 <?php
 
-if(isset($_GET["temp_value"],$_GET["temp_date"])) {
-   $temp_value = $_GET["temp_value"]; // get temperature value from HTTP GET
-   $temp_date = $_GET["temp_date"]; // get temp_date value from HTTP GET
+include 'secrets.php';
+$lastInsertId;
+if (isset($_GET["temp_value"], $_GET["temp_date"], $_GET["lat"], $_GET["lon"])) {
+    // Get values from HTTP GET
+    $temp_value = $_GET["temp_value"];
+    $temp_date = $_GET["temp_date"];
+    $lat = $_GET["lat"];
+    $lon = $_GET["lon"];
 
-   $servername = "localhost";
-   $username = "Arduino";
-   $password = "arduino";
-   $dbname = "db_arduino";
+    // Create connection
+    $conn = new mysqli($servername, $username, $password, $dbname);
+    // Check connection
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+	
+	function insertToDB($connection, $query){
+		if ($query->execute() === TRUE) {
+			// echo "New record created successfully\n";
+			// echo "Inserted: \n";
+			// echo $temp_value . "\n";
+			// echo $temp_date . "\n";
+			// echo $lat . "\n";
+			// echo $lon . "\n\n\n";
+			$lastInsertId = $connection->insert_id;
+			echo "ID of last inserted record is: $lastInsertId \n";
+			return $lastInsertId;
+		} else {
+			echo "Error: " . $query->error;
+			return null;
+		}
+	}
+	
+	include('get_forecast.php'); //get data from weather API
+    $stmt = $conn->prepare("INSERT INTO arduino (temp_value, temp_date, latitude, longitude) VALUES (?, ?, ?, ?)"); //prepare Arduino SQL statement
+    $stmt->bind_param('dsdd', $temp_value, $temp_date, $lat, $lon);
 
-   // Create connection
-   $conn = new mysqli($servername, $username, $password, $dbname);
-   // Check connection
-   if ($conn->connect_error) {
-      die("Connection failed: " . $conn->connect_error);
-   }
+    $lastInsertId = insertToDB($conn, $stmt); //insert Arduino data to DB
+	
+	$stmt = $conn->prepare("INSERT INTO `forecast` (forecast_value, arduino_id) VALUES (?, ?)"); //prepare Weather SQL statement
+	$stmt->bind_param('di', $tempWeatherAPI, $lastInsertId);
+	echo "tempWeatherAPI: $tempWeatherAPI, lastInsertId: $lastInsertId \n";
 
-	$stmt = $conn->prepare("INSERT INTO tbl_temp (temp_value, temp_date) VALUES (?, ?)");
-	$stmt->bind_param('ds', $temp_value, $temp_date);
-	echo "Inserted: \n";
-	echo $temp_value;
-	echo "\n";
-	echo $temp_date;
-	echo "\n\n\n";
-
-
-   if ($stmt->execute() === TRUE) { 
-      echo "New record created successfully";
-   } else {
-      echo "Error: " . $sql . " => " . $conn->error;
-   }
-
-   $conn->close();
+	insertToDB($conn, $stmt); //insert Weather data to DB
+    
+    $conn->close();
 } else {
-   echo "data is not set";
+    echo "data is not set";
 }
 ?>
