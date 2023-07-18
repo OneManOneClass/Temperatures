@@ -72,7 +72,7 @@ class GUI:
             if current_data.forecast:
                 self.forecast_label.config(text=f"Forecast Temperature: {current_data.forecast.forecast_value:.2f}")
             else:
-                self.forecast_label.config(text="Forecast: Not available")
+                self.forecast_label.config(text="Forecast: no data!")
         else:
             self.temperature_label.config(text="No data available")
             self.forecast_label.config(text="")
