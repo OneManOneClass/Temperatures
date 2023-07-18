@@ -2,6 +2,24 @@
 echo "---------------------------------------------------------------------------------PHP\n";
 include 'secrets.php';
 $lastInsertId;
+
+function insertToDB($connection, $query){
+	if ($query->execute() === TRUE) {
+		// echo "New record created successfully\n";
+		// echo "Inserted: \n";
+		// echo $temp_value . "\n";
+		// echo $temp_date . "\n";
+		// echo $lat . "\n";
+		// echo $lon . "\n\n\n";
+		$lastInsertId = $connection->insert_id;
+		echo "ID of last inserted record is: $lastInsertId \n";
+		return $lastInsertId;
+	} else {
+		echo "Error: " . $query->error;
+		return null;
+	}
+}
+
 if (isset($_GET["temp_value"], $_GET["temp_date"], $_GET["lat"], $_GET["lon"])) {
     // Get values from HTTP GET
     $temp_value = $_GET["temp_value"];
@@ -15,23 +33,6 @@ if (isset($_GET["temp_value"], $_GET["temp_date"], $_GET["lat"], $_GET["lon"])) 
     if ($conn->connect_error) {
         die("Connection failed: " . $conn->connect_error);
     }
-
-	function insertToDB($connection, $query){
-		if ($query->execute() === TRUE) {
-			// echo "New record created successfully\n";
-			// echo "Inserted: \n";
-			// echo $temp_value . "\n";
-			// echo $temp_date . "\n";
-			// echo $lat . "\n";
-			// echo $lon . "\n\n\n";
-			$lastInsertId = $connection->insert_id;
-			echo "ID of last inserted record is: $lastInsertId \n";
-			return $lastInsertId;
-		} else {
-			echo "Error: " . $query->error;
-			return null;
-		}
-	}
 
 	include('get_forecast.php'); //get data from weather API
     $stmt = $conn->prepare("INSERT INTO arduino (temp_value, temp_date, latitude, longitude) VALUES (?, ?, ?, ?)"); //prepare Arduino SQL statement
