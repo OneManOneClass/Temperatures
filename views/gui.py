@@ -34,13 +34,13 @@ class GUI:
                         padding=5)
 
         self.temperature_label = ttk.Label(self.root, text="Arduino Temperature: ", style="Custom.TLabel")
-        self.temperature_label.pack(pady=10)
+        self.temperature_label.pack(pady=10, anchor=tk.NW)
 
         self.forecast_label = ttk.Label(self.root, text="Forecast Temperature: ", style="Custom.TLabel")
-        self.forecast_label.pack(pady=10)
+        self.forecast_label.pack(pady=10, anchor=tk.NW)
 
         self.refresh_button = ttk.Button(self.root, text="Refresh", command=self.refresh_data)
-        self.refresh_button.pack(pady=10)
+        self.refresh_button.pack(pady=10, anchor=tk.NW)
 
         self.start_datetime_label = ttk.Label(self.root, text="Start Date and Time (YYYY-MM-DD HH:MM:SS):",
                                               style="Custom.TLabel")
@@ -98,7 +98,7 @@ class GUI:
                         if self.plot_canvas:
                             self.plot_canvas.get_tk_widget().pack()
 
-                        fig, ax = plt.subplots(figsize=(10, 6))  # Update the figure size here
+                        fig, ax = plt.subplots(figsize=(12, 6))  # Update the figure size here
                         ax.plot(time_values, arduino_temp_values, label="Arduino Temperature")
                         ax.plot(time_values, forecast_temp_values, label="Forecast Temperature")
 
@@ -109,12 +109,12 @@ class GUI:
                         self.plot_canvas = FigureCanvasTkAgg(fig, master=self.root)
                         self.plot_canvas.get_tk_widget().pack(pady=10)
                     else:
-                        self.show_error_message("No data available for the selected time range.")
+                        self.show_error_message("No data available for the selected time range!")
                 else:
                     self.show_error_message(
-                        "Invalid time range. End date and time should be after start date and time.")
+                        "Invalid time range!")
             except ValueError:
-                self.show_error_message("Invalid date and time format. Please use YYYY-MM-DD HH:MM:SS.")
+                self.show_error_message("Invalid date and time format. (YYYY-MM-DD HH:MM:SS)")
         else:
             self.show_error_message("Please enter both start and end dates.")
 
